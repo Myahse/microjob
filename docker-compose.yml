@@ -1,0 +1,43 @@
+# Local stack: PostgreSQL + Go API + React web app (admin included).
+#   docker compose up --build
+# Web: http://localhost:3000 · API: http://localhost:8080
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: microjob
+      POSTGRES_PASSWORD: microjob
+      POSTGRES_DB: microjob
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U microjob"]
+      interval: 2s
+      retries: 20
+
+  api:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://microjob:microjob@db:5432/microjob?sslmode=disable
+      JWT_SECRET: ${JWT_SECRET:-dev-only-secret}
+      ALLOWED_ORIGINS: "*"
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@microjob.ci}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin12345}
+      SEED_DEMO: ${SEED_DEMO:-true}
+    volumes:
+      - uploads:/data
+    ports:
+      - "8080:8080"
+
+  web:
+    build: ./web
+    depends_on: [api]
+    ports:
+      - "3000:80"
+
+volumes:
+  db:
+  uploads:
